@@ -7,9 +7,9 @@ class DataStructureEngine:
     @staticmethod
     def get_ds_generator(ds_type):
         if ds_type == "Stack":
-            return DataStructureEngine.simulate_stack()
+            return DataStructureEngine.simulate_stack(), []
         elif ds_type == "Queue":
-            return DataStructureEngine.simulate_queue()
+            return DataStructureEngine.simulate_queue(), []
         return None, []
 
     @staticmethod
@@ -20,8 +20,6 @@ class DataStructureEngine:
             ("POP", None), ("PUSH", 33), ("POP", None)
         ]
         
-        state_history = []
-        
         for op, val in operations:
             if op == "PUSH":
                 node = StackMemoryNode(val, hex(id(val)))
@@ -29,7 +27,6 @@ class DataStructureEngine:
             elif op == "POP" and stack:
                 stack.pop()
             
-            # Format state snapshot for rendering
             current_snapshot = [(n.value, n.address) for n in stack]
             yield {"type": "STACK", "data": current_snapshot, "last_op": f"{op} {val if val else ''}"}
 
