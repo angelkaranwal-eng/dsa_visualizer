@@ -72,12 +72,14 @@ class MainWindow(QMainWindow):
 
     def bind_events(self):
         self.category_box.currentIndexChanged.connect(self.update_selector_options)
+        self.selector_box.currentIndexChanged.connect(self.reset_engine)
         self.btn_play.clicked.connect(self.toggle_play)
         self.btn_step.clicked.connect(self.engine_step)
         self.btn_reset.clicked.connect(self.reset_engine)
         self.speed_slider.valueChanged.connect(self.update_speed)
 
     def update_selector_options(self):
+        self.selector_box.blockSignals(True)
         self.selector_box.clear()
         if self.category_box.currentText() == "Sorting Algorithms":
             self.current_mode = "SORTING"
@@ -85,6 +87,7 @@ class MainWindow(QMainWindow):
         else:
             self.current_mode = "DS"
             self.selector_box.addItems(["Stack", "Queue"])
+        self.selector_box.blockSignals(False)
         self.reset_engine()
 
     def toggle_play(self):
@@ -108,12 +111,14 @@ class MainWindow(QMainWindow):
         
         if self.current_mode == "SORTING":
             algo_name = self.selector_box.currentText()
-            self.active_generator, initial_data = AlgorithmEngine.get_sorting_generator(algo_name)
-            self.canvas.render_sorting_state(initial_data, [])
+            if algo_name:
+                self.active_generator, initial_data = AlgorithmEngine.get_sorting_generator(algo_name)
+                self.canvas.render_sorting_state(initial_data, [])
         else:
             ds_name = self.selector_box.currentText()
-            self.active_generator, initial_state = DataStructureEngine.get_ds_generator(ds_name)
-            self.canvas.render_ds_state(initial_state)
+            if ds_name:
+                self.active_generator, _ = DataStructureEngine.get_ds_generator(ds_name)
+                self.canvas.render_ds_state({"type": ds_name.upper(), "data": [], "last_op": "Initialized"})
 
     def engine_step(self):
         if not self.active_generator:
