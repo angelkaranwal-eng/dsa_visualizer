@@ -1,47 +1,39 @@
-class StackMemoryNode:
-    def __init__(self, value, address):
-        self.value = value
-        self.address = address
+import random
 
-class DataStructureEngine:
-    @staticmethod
-    def get_ds_generator(ds_type):
-        if ds_type == "Stack":
-            return DataStructureEngine.simulate_stack(), []
-        elif ds_type == "Queue":
-            return DataStructureEngine.simulate_queue(), []
-        return None, []
+class StackModel:
+    def __init__(self):
+        self.items = []
+        self.addresses = []
 
-    @staticmethod
-    def simulate_stack():
-        stack = []
-        operations = [
-            ("PUSH", 15), ("PUSH", 42), ("PUSH", 89),
-            ("POP", None), ("PUSH", 33), ("POP", None)
-        ]
-        
-        for op, val in operations:
-            if op == "PUSH":
-                node = StackMemoryNode(val, hex(id(val)))
-                stack.append(node)
-            elif op == "POP" and stack:
-                stack.pop()
-            
-            current_snapshot = [(n.value, n.address) for n in stack]
-            yield {"type": "STACK", "data": current_snapshot, "last_op": f"{op} {val if val else ''}"}
+    def push(self, val):
+        self.items.append(val)
+        hex_addr = f"0x{random.randint(0x1000, 0xFFFF):04X}"
+        self.addresses.append(hex_addr)
 
-    @staticmethod
-    def simulate_queue():
-        queue = []
-        operations = [
-            ("ENQUEUE", 100), ("ENQUEUE", 200), ("ENQUEUE", 300),
-            ("DEQUEUE", None), ("ENQUEUE", 400)
-        ]
-        
-        for op, val in operations:
-            if op == "ENQUEUE":
-                queue.append(val)
-            elif op == "DEQUEUE" and queue:
-                queue.pop(0)
-                
-            yield {"type": "QUEUE", "data": list(queue), "last_op": f"{op} {val if val else ''}"}
+    def pop(self):
+        if self.items:
+            self.items.pop()
+            self.addresses.pop()
+
+    def get_state(self):
+        # Returns list of tuples: (value, hex_address)
+        return list(zip(self.items, self.addresses))
+
+
+class QueueModel:
+    def __init__(self):
+        self.items = []
+        self.addresses = []
+
+    def enqueue(self, val):
+        self.items.append(val)
+        hex_addr = f"0x{random.randint(0x1000, 0xFFFF):04X}"
+        self.addresses.append(hex_addr)
+
+    def dequeue(self):
+        if self.items:
+            self.items.pop(0)
+            self.addresses.pop(0)
+
+    def get_state(self):
+        return list(zip(self.items, self.addresses))
