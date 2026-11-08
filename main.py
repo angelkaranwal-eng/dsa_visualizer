@@ -1,143 +1,126 @@
-import sys
-from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                             QHBoxLayout, QPushButton, QComboBox, QSlider, QLabel, QFrame)
-from PySide6.QtCore import Qt, QTimer
-from views.canvas import VisualizationCanvas
-from algorithms.sorting import AlgorithmEngine
-from models.data_structures import DataStructureEngine
+# Developed by Member 1: Angel Karanwal (Lead - Core Execution Engine)
 
-class MainWindow(QMainWindow):
+import sys
+import random
+from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
+                             QHBoxLayout, QPushButton, QSlider, QLabel, QComboBox)
+from PySide6.QtCore import QTimer, Qt
+
+# Importing member modules
+from models.data_structures import StackModel
+from algorithms.sorting import bubble_sort_generator, selection_sort_generator, insertion_sort_generator
+from views.canvas import VisualizerCanvas
+
+
+class AlgoLabMainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("DSA Visualizer Desktop - Engine v0.7")
-        self.resize(1100, 700)
-        
-        # Core Engine Controls
+        self.setWindowTitle("AlgoLab - DSA Visualizer (Team IDS-III-2026-T019)")
+        self.resize(1000, 650)
+        self.setStyleSheet("background-color: #0f172a; color: #f8fafc;")
+
+        # Core State
+        self.array = [45, 12, 89, 34, 67, 23, 90, 11]
+        self.generator = None
         self.timer = QTimer()
-        self.timer.timeout.connect(self.engine_step)
-        self.animation_speed = 100
-        self.is_playing = False
-        
-        self.active_generator = None
-        self.current_mode = "SORTING"
-        
-        self.setup_ui()
-        self.bind_events()
+        self.timer.timeout.connect(self.next_step)
+        self.stack_model = StackModel()
 
-    def setup_ui(self):
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-        main_layout = QHBoxLayout(central_widget)
+        self.init_ui()
 
-        # Left Sidebar Panel
-        sidebar = QFrame()
-        sidebar.setFixedWidth(280)
-        sidebar_layout = QVBoxLayout(sidebar)
+    def init_ui(self):
+        main_widget = QWidget()
+        self.setCentralWidget(main_widget)
+        main_layout = QHBoxLayout(main_widget)
 
-        sidebar_layout.addWidget(QLabel("<b>Algorithm / DS Module</b>"))
-        self.category_box = QComboBox()
-        self.category_box.addItems(["Sorting Algorithms", "Linear Data Structures"])
-        sidebar_layout.addWidget(self.category_box)
+        # Left Control Panel
+        control_panel = QVBoxLayout()
+        control_panel.setContentsMargins(15, 15, 15, 15)
 
-        self.selector_box = QComboBox()
-        sidebar_layout.addWidget(self.selector_box)
+        title = QLabel("AlgoLab Controls")
+        title.setStyleSheet("font-size: 18px; font-weight: bold; color: #38bdf8;")
+        control_panel.addWidget(title)
 
-        sidebar_layout.addSpacing(15)
-        sidebar_layout.addWidget(QLabel("<b>Playback Engine</b>"))
-        
-        self.btn_play = QPushButton("Play")
+        # Select Mode / Algo
+        control_panel.addWidget(QLabel("Select Feature:"))
+        self.algo_box = QComboBox()
+        self.algo_box.addItems(["Bubble Sort", "Selection Sort", "Insertion Sort", "Stack Simulation"])
+        self.algo_box.setStyleSheet("background-color: #1e293b; padding: 6px; border-radius: 4px;")
+        control_panel.addWidget(self.algo_box)
+
+        # Buttons
+        self.btn_start = QPushButton("Play")
+        self.btn_start.setStyleSheet("background-color: #10b981; padding: 8px; font-weight: bold; border-radius: 4px;")
+        self.btn_start.clicked.connect(self.start_visualization)
+
         self.btn_step = QPushButton("Next Step")
-        self.btn_reset = QPushButton("Reset Engine")
-        
-        sidebar_layout.addWidget(self.btn_play)
-        sidebar_layout.addWidget(self.btn_step)
-        sidebar_layout.addWidget(self.btn_reset)
+        self.btn_step.setStyleSheet("background-color: #3b82f6; padding: 8px; font-weight: bold; border-radius: 4px;")
+        self.btn_step.clicked.connect(self.next_step)
 
-        sidebar_layout.addSpacing(15)
-        sidebar_layout.addWidget(QLabel("<b>Execution Speed</b>"))
+        self.btn_reset = QPushButton("Reset / Randomize")
+        self.btn_reset.setStyleSheet("background-color: #ef4444; padding: 8px; font-weight: bold; border-radius: 4px;")
+        self.btn_reset.clicked.connect(self.reset_data)
+
+        control_panel.addWidget(self.btn_start)
+        control_panel.addWidget(self.btn_step)
+        control_panel.addWidget(self.btn_reset)
+
+        # Speed Slider
+        control_panel.addWidget(QLabel("Speed Control:"))
         self.speed_slider = QSlider(Qt.Horizontal)
-        self.speed_slider.setRange(10, 500)
-        self.speed_slider.setValue(200)
-        sidebar_layout.addWidget(self.speed_slider)
-
-        sidebar_layout.addStretch()
-
-        # Canvas Area
-        self.canvas = VisualizationCanvas()
-
-        main_layout.addWidget(sidebar)
-        main_layout.addWidget(self.canvas, 1)
-
-        self.update_selector_options()
-
-    def bind_events(self):
-        self.category_box.currentIndexChanged.connect(self.update_selector_options)
-        self.selector_box.currentIndexChanged.connect(self.reset_engine)
-        self.btn_play.clicked.connect(self.toggle_play)
-        self.btn_step.clicked.connect(self.engine_step)
-        self.btn_reset.clicked.connect(self.reset_engine)
+        self.speed_slider.setRange(100, 1000)
+        self.speed_slider.setValue(400)
         self.speed_slider.valueChanged.connect(self.update_speed)
+        control_panel.addWidget(self.speed_slider)
 
-    def update_selector_options(self):
-        self.selector_box.blockSignals(True)
-        self.selector_box.clear()
-        if self.category_box.currentText() == "Sorting Algorithms":
-            self.current_mode = "SORTING"
-            self.selector_box.addItems(["Bubble Sort", "Selection Sort", "Insertion Sort"])
-        else:
-            self.current_mode = "DS"
-            self.selector_box.addItems(["Stack", "Queue"])
-        self.selector_box.blockSignals(False)
-        self.reset_engine()
+        control_panel.addStretch()
 
-    def toggle_play(self):
-        if self.is_playing:
-            self.timer.stop()
-            self.btn_play.setText("Play")
-            self.is_playing = False
-        else:
-            self.timer.start(510 - self.speed_slider.value())
-            self.btn_play.setText("Pause")
-            self.is_playing = True
+        # Canvas (Member 4 Visual Renderer)
+        self.canvas = VisualizerCanvas()
+
+        main_layout.addLayout(control_panel, 1)
+        main_layout.addWidget(self.canvas, 3)
+
+    def start_visualization(self):
+        selected = self.algo_box.currentText()
+        if "Sort" in selected:
+            if selected == "Bubble Sort":
+                self.generator = bubble_sort_generator(self.array)
+            elif selected == "Selection Sort":
+                self.generator = selection_sort_generator(self.array)
+            elif selected == "Insertion Sort":
+                self.generator = insertion_sort_generator(self.array)
+
+            self.timer.start(1100 - self.speed_slider.value())
+        elif selected == "Stack Simulation":
+            # Push a random element onto stack
+            val = random.randint(10, 99)
+            self.stack_model.push(val)
+            self.canvas.set_ds_state(self.stack_model.get_state())
+
+    def next_step(self):
+        if self.generator:
+            try:
+                state = next(self.generator)
+                self.canvas.set_sorting_state(state['array'], state['active'], state['action'])
+                if state['action'] == 'DONE':
+                    self.timer.stop()
+            except StopIteration:
+                self.timer.stop()
 
     def update_speed(self, val):
-        if self.is_playing:
-            self.timer.setInterval(510 - val)
+        if self.timer.isActive():
+            self.timer.setInterval(1100 - val)
 
-    def reset_engine(self):
+    def reset_data(self):
         self.timer.stop()
-        self.is_playing = False
-        self.btn_play.setText("Play")
-        
-        if self.current_mode == "SORTING":
-            algo_name = self.selector_box.currentText()
-            if algo_name:
-                self.active_generator, initial_data = AlgorithmEngine.get_sorting_generator(algo_name)
-                self.canvas.render_sorting_state(initial_data, [])
-        else:
-            ds_name = self.selector_box.currentText()
-            if ds_name:
-                self.active_generator, _ = DataStructureEngine.get_ds_generator(ds_name)
-                self.canvas.render_ds_state({"type": ds_name.upper(), "data": [], "last_op": "Initialized"})
+        self.array = [random.randint(10, 95) for _ in range(8)]
+        self.canvas.set_sorting_state(self.array, [], "")
+        self.stack_model = StackModel()
 
-    def engine_step(self):
-        if not self.active_generator:
-            return
-        
-        try:
-            state = next(self.active_generator)
-            if self.current_mode == "SORTING":
-                data, active_idx = state
-                self.canvas.render_sorting_state(data, active_idx)
-            else:
-                self.canvas.render_ds_state(state)
-        except StopIteration:
-            self.timer.stop()
-            self.is_playing = False
-            self.btn_play.setText("Completed")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = MainWindow()
+    window = AlgoLabMainWindow()
     window.show()
     sys.exit(app.exec())

@@ -1,22 +1,26 @@
+# Developed by Member 4: Anuja (UI Canvas & Visual Renderer)
+
 from PySide6.QtWidgets import QWidget
-from PySide6.QtGui import QPainter, QColor, QBrush, QPen, QFont
+from PySide6.QtGui import QPainter, QColor, QFont, QBrush, QPen
 from PySide6.QtCore import Qt
 
-class VisualizationCanvas(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.mode = "SORTING"
-        self.sorting_data = []
+class VisualizerCanvas(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.mode = "SORTING"  # "SORTING" or "DS"
+        self.array = [40, 10, 70, 30, 90, 50, 20, 80]
         self.active_indices = []
-        self.ds_state = {}
+        self.action = ""
+        self.ds_state = []  # List of tuples (val, hex_addr)
 
-    def render_sorting_state(self, data, active_indices):
+    def set_sorting_state(self, array, active, action):
         self.mode = "SORTING"
-        self.sorting_data = data
-        self.active_indices = active_indices
-        self.update()
+        self.array = array
+        self.active_indices = active
+        self.action = action
+        self.update()  # Triggers paintEvent
 
-    def render_ds_state(self, ds_state):
+    def set_ds_state(self, ds_state):
         self.mode = "DS"
         self.ds_state = ds_state
         self.update()
@@ -25,71 +29,76 @@ class VisualizationCanvas(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         
-        # Dark Theme Workspace Background
-        painter.fillRect(self.rect(), QColor(20, 22, 28))
+        # Dark Background
+        painter.fillRect(self.rect(), QColor("#0f172a"))
 
-        if self.mode == "SORTING" and self.sorting_data:
-            self.draw_sorting_bars(painter)
-        elif self.mode == "DS" and self.ds_state:
-            self.draw_data_structure(painter)
+        if self.mode == "SORTING":
+            self.draw_sorting(painter)
+        else:
+            self.draw_ds(painter)
 
-    def draw_sorting_bars(self, painter):
-        width = self.width() / len(self.sorting_data)
-        max_val = max(self.sorting_data) if max(self.sorting_data) > 0 else 1
-
-        for i, val in enumerate(self.sorting_data):
-            bar_height = (val / max_val) * (self.height() - 100)
-            x = i * width
-            y = self.height() - bar_height - 30
-
-            if i in self.active_indices:
-                painter.setBrush(QBrush(QColor(235, 87, 87)))  # Red highlight for active swap/compare
-            else:
-                painter.setBrush(QBrush(QColor(86, 204, 242))) # Blue default bar
-
-            painter.setPen(QPen(QColor(15, 15, 15), 1))
-            painter.drawRect(int(x + 2), int(y), int(width - 4), int(bar_height))
-
-            # Render Value Labels
-            painter.setPen(QPen(Qt.white))
-            painter.drawText(int(x + 4), int(self.height() - 10), str(val))
-
-    def draw_data_structure(self, painter):
-        painter.setPen(QPen(Qt.white))
-        painter.setFont(QFont("Arial", 12))
+    def draw_sorting(self, painter):
+        if not self.array:
+            return
         
-        op_text = self.ds_state.get("last_op", "")
-        painter.drawText(20, 30, f"Last Operation: {op_text}")
+        w = self.width()
+        h = self.height()
+        n = len(self.array)
+        margin = 40
+        bar_width = (w - (2 * margin) - (n * 5)) / n
+        max_val = max(self.array) if max(self.array) > 0 else 100
 
-        ds_type = self.ds_state.get("type", "")
-        data = self.ds_state.get("data", [])
+        for i, val in enumerate(self.array):
+            bar_height = (val / max_val) * (h - 120)
+            x = margin + i * (bar_width + 5)
+            y = h - margin - bar_height
 
-        if ds_type == "STACK":
-            # Draw Stack Blocks from bottom up
-            start_x = self.width() // 2 - 60
-            start_y = self.height() - 80
+            # Color logic based on active state
+            if i in self.active_indices:
+                if self.action == "SWAP":
+                    color = QColor("#ef4444")  # Red for Swap
+                else:
+                    color = QColor("#f59e0b")  # Yellow for Compare
+            else:
+                color = QColor("#3b82f6")  # Blue for Normal
+
+            painter.setBrush(QBrush(color))
+            painter.setPen(Qt.NoPen)
+            painter.drawRoundedRect(int(x), int(y), int(bar_width), int(bar_height), 4, 4)
+
+            # Draw value on top
+            painter.setPen(QPen(QColor("#f8fafc")))
+            painter.setFont(QFont("Segoe UI", 10, QFont.Bold))
+            painter.drawText(int(x), int(y - 20), int(bar_width), 20, Qt.AlignCenter, str(val))
+
+    def draw_ds(self, painter):
+        w = self.width()
+        h = self.height()
+        
+        painter.setFont(QFont("Segoe UI", 10, QFont.Bold))
+
+        if not self.ds_state:
+            painter.setPen(QPen(QColor("#94a3b8")))
+            painter.drawText(0, 0, w, h, Qt.AlignCenter, "Memory Stack Empty")
+            return
+
+        box_width = 160
+        box_height = 50
+        start_x = (w - box_width) / 2
+        start_y = h - 80
+
+        for i, (val, hex_addr) in enumerate(self.ds_state):
+            y = start_y - (i * (box_height + 10))
+
+            # Draw memory block
+            painter.setBrush(QBrush(QColor("#1e293b")))
+            painter.setPen(QPen(QColor("#10b981"), 2))
+            painter.drawRoundedRect(int(start_x), int(y), box_width, box_height, 6, 6)
+
+            # Draw Value & Address
+            painter.setPen(QPen(QColor("#f8fafc")))
+            painter.drawText(int(start_x), int(y + 8), box_width, 20, Qt.AlignCenter, f"Val: {val}")
             
-            for i, item in enumerate(data):
-                val, addr = item
-                y = start_y - (i * 45)
-                
-                painter.setBrush(QBrush(QColor(111, 207, 151))) # Green Stack Block
-                painter.setPen(QPen(Qt.black, 2))
-                painter.drawRect(start_x, y, 120, 40)
-                
-                painter.setPen(QPen(Qt.black))
-                painter.drawText(start_x + 15, y + 25, f"{val} ({addr[:6]})")
-
-        elif ds_type == "QUEUE":
-            start_x = 50
-            start_y = self.height() // 2 - 20
-            
-            for i, val in enumerate(data):
-                x = start_x + (i * 70)
-                
-                painter.setBrush(QBrush(QColor(242, 201, 76))) # Yellow Queue Block
-                painter.setPen(QPen(Qt.black, 2))
-                painter.drawRect(x, start_y, 60, 40)
-                
-                painter.setPen(QPen(Qt.black))
-                painter.drawText(x + 20, start_y + 25, str(val))
+            painter.setPen(QPen(QColor("#64748b")))
+            painter.setFont(QFont("Consolas", 9))
+            painter.drawText(int(start_x), int(y + 28), box_width, 18, Qt.AlignCenter, f"[{hex_addr}]")
